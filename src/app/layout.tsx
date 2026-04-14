@@ -5,6 +5,13 @@ export const metadata: Metadata = {
   title: "CleanStmt - Extract Clean Data from Bank Statements to Excel",
   description:
     "Stop fighting with messy PDFs. Convert bank statements to accounting-ready Excel or QuickBooks CSV in seconds. No merged cells, no formatting issues.",
+  icons: {
+    icon: [
+      { url: "/brand/logo-concept-a.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/brand/logo-concept-a.svg"],
+    apple: [{ url: "/brand/logo-concept-a.svg" }],
+  },
   keywords: [
     "bank statement converter",
     "PDF to Excel",

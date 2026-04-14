@@ -1,0 +1,53 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CleanStmt Logo Concept A">
+  <defs>
+    <linearGradient id="bgA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1224"/>
+      <stop offset="100%" stop-color="#111D3C"/>
+    </linearGradient>
+    <linearGradient id="lineA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#39E6FF"/>
+      <stop offset="100%" stop-color="#4E7BFF"/>
+    </linearGradient>
+    <filter id="glowA" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bgA)"/>
+
+  <path d="M164 116H290L348 174V352C348 373 331 390 310 390H164C143 390 126 373 126 352V154C126 133 143 116 164 116Z"
+        fill="none" stroke="url(#lineA)" stroke-width="16" stroke-linejoin="round" filter="url(#glowA)"/>
+  <path d="M290 116V174H348" fill="none" stroke="url(#lineA)" stroke-width="16" stroke-linejoin="round"/>
+
+  <path d="M286 226C286 192 260 166 228 166C195 166 168 193 168 226C168 259 195 286 228 286"
+        fill="none" stroke="url(#lineA)" stroke-width="18" stroke-linecap="round"/>
+
+  <path d="M178 208H208M178 240H204M178 272H212" stroke="#7CEBFF" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+
+  <rect x="232" y="196" width="96" height="128" rx="10" fill="none" stroke="#8CEEFF" stroke-width="7" opacity="0.95"/>
+  <rect x="232" y="196" width="96" height="30" rx="10" fill="#39E6FF" opacity="0.2"/>
+  <path d="M232 226H328M232 258H328M232 290H328" stroke="#6EDEFF" stroke-width="5" opacity="0.9"/>
+  <path d="M264 196V324M296 196V324" stroke="#6EDEFF" stroke-width="5" opacity="0.9"/>
+
+  <rect x="264" y="258" width="32" height="32" rx="6" fill="#53E2A1" opacity="0.3"/>
+  <rect x="296" y="258" width="32" height="32" rx="6" fill="#FF7E8A" opacity="0.28"/>
+
+  <line x1="208" y1="208" x2="232" y2="210" stroke="#7AF1FF" stroke-width="6"/>
+  <line x1="204" y1="240" x2="232" y2="242" stroke="#7AF1FF" stroke-width="6" opacity="0.9"/>
+  <line x1="212" y1="272" x2="232" y2="274" stroke="#7AF1FF" stroke-width="6" opacity="0.9"/>
+
+  <circle cx="222" cy="210" r="8" fill="#EAF8FF"/>
+  <circle cx="232" cy="210" r="7" fill="#39E6FF"/>
+  <circle cx="232" cy="242" r="7" fill="#4E7BFF"/>
+  <circle cx="232" cy="274" r="7" fill="#6EDBFF"/>
+
+  <path d="M350 390C342 382 332 378 322 378C299 378 280 397 280 420C280 443 299 462 322 462C333 462 344 458 352 449"
+        fill="none" stroke="#0A1224" stroke-width="20" stroke-linecap="round"/>
+  <path d="M350 390C342 382 332 378 322 378C299 378 280 397 280 420C280 443 299 462 322 462C333 462 344 458 352 449"
+        fill="none" stroke="url(#lineA)" stroke-width="10" stroke-linecap="round" filter="url(#glowA)"/>
+  <circle cx="352" cy="449" r="4.5" fill="#39E6FF"/>
+</svg>

@@ -6,6 +6,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 const MAX_BODY_SIZE = 20 * 1024 * 1024; // 20 MB
+const DEFAULT_MAX_TOKENS = 12000;
+const MAX_ALLOWED_TOKENS = 12000;
 
 const ALLOWED_TYPES = [
   "image/png",
@@ -27,17 +29,16 @@ Your mission: extract ALL information from financial documents (bank statements,
 
 Strict rules:
 1. Identify the document type automatically.
-2. Analyze the document's visual layout: identify distinct sections/blocks (e.g. "BILL TO" and "FROM" side by side, "Payment Methods" as a list, etc.).
-3. Section titles and column headers must come from the ACTUAL document content — NEVER hardcode or invent field names.
-4. Sections that appear side-by-side in the document must use layout "side-by-side"; vertical list sections use layout "list".
-5. For the main data table, preserve the ORIGINAL column names exactly as shown.
-6. Extract EVERY row — miss nothing. Each row must be independent.
-7. Extract summary/totals separately (subtotal, tax, discount, total due, etc.).
-8. Preserve original currency symbols, signs, and number formatting.
-9. Keep dates in their original format.
-10. Clean up OCR artifacts but keep original names and values.
-11. Return ONLY valid JSON — no markdown fences, no explanations.
-12. If a field is unreadable or missing, use empty string "".`;
+2. Detect visual layout and grouping from the actual page structure.
+3. Section titles and table headers must come from the document text; never invent names.
+4. Side-by-side groups use layout "side-by-side"; vertical groups use layout "list".
+5. Preserve original table column names exactly and keep every row in order.
+6. Extract totals/summary lines separately.
+7. Preserve original currency symbols, signs, and number/date formatting.
+8. Monetary accuracy is critical: for every amount/number in header, rows, and summary, read digit-by-digit and copy exactly from the document text.
+9. Never "correct", round, or infer numeric values. Do not swap similar digits (5/9, 3/8, 0/6, 1/7).
+10. If any digit is uncertain, return empty string "" for that value instead of guessing.
+11. Return ONLY valid JSON (no markdown, no commentary).`;
 
 const USER_PROMPT_BASE = `Analyze this financial document image. Extract ALL information into a JSON object with these 5 sections:
 
@@ -59,10 +60,111 @@ const USER_PROMPT_BASE = `Analyze this financial document image. Extract ALL inf
 5. "summary": totals/summary lines below the data table.
    Format: [{"label": "Subtotal", "value": "$702.50"}, {"label": "Tax 10%", "value": "$59.71"}]
 
-Return ONLY the raw JSON object.
+Return ONLY the raw JSON object.`;
 
-Example for an invoice:
-{"header":[{"label":"Invoice No","value":"000456"}],"sections":[{"layout":"side-by-side","groups":[{"title":"BILL TO","items":["Street Address","City, State, ZIP","www.example.com","email@example.com"]},{"title":"FROM","items":["Customer Name","136 Street","City, State, 10000","client@mail.com"]}]},{"layout":"list","groups":[{"title":"Payment Method","items":[{"label":"Bank Name","value":"Bank of America"},{"label":"Invoice","value":"001258"}]}]}],"columns":["DESCRIPTION","UNIT PRICE","QTY","TOTAL"],"rows":[["Item 1","$100.00","3","$300.00"]],"summary":[{"label":"SUBTOTAL","value":"$702.50"},{"label":"AMOUNT DUE","value":"$656.84"}]}`;
+const SUMMARY_VERIFY_PROMPT = `Re-read the SAME document image and verify ONLY totals/summary values with strict digit accuracy.
+
+Rules:
+1. Return ONLY this JSON shape: {"summary":[{"label":"...","value":"..."}]}
+2. Copy each summary value exactly as printed (currency symbol, commas, decimals, sign).
+3. Read numbers character-by-character and do not infer.
+4. If unsure, use empty string "".
+5. No markdown, no extra text.`;
+
+function normalizeLabel(s: string): string {
+  return (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function looksLikeNumericValue(s: string): boolean {
+  const t = (s || "").trim();
+  return /\d/.test(t) && (/[$€£¥]/.test(t) || /[\d.,()%+-]/.test(t));
+}
+
+function parseSummaryFromText(rawText: string): { label: string; value: string }[] | null {
+  let txt = rawText.trim();
+  if (txt.startsWith("```")) {
+    txt = txt.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+  }
+  try {
+    const parsed = JSON.parse(txt) as { summary?: { label?: string; value?: string }[] };
+    if (!Array.isArray(parsed.summary)) return null;
+    return parsed.summary.map((s) => ({
+      label: String(s?.label ?? ""),
+      value: String(s?.value ?? ""),
+    }));
+  } catch {
+    return null;
+  }
+}
+
+function parseMoneyLoose(value: string): number | null {
+  const s = (value || "").trim();
+  if (!s) return null;
+  const negativeByParen = s.startsWith("(") && s.endsWith(")");
+  const cleaned = s.replace(/[,$€£¥%\s]/g, "").replace(/[()]/g, "");
+  const num = Number(cleaned);
+  if (!Number.isFinite(num)) return null;
+  return negativeByParen ? -Math.abs(num) : num;
+}
+
+function extractPercentFromLabel(label: string): number | null {
+  const m = label.match(/(\d+(?:\.\d+)?)\s*%/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+function shouldVerifySummary(summary: { label: string; value: string }[]): boolean {
+  if (!summary || summary.length === 0) return false;
+
+  // Missing/empty values should always trigger verification.
+  if (summary.some((s) => !String(s.value ?? "").trim())) return true;
+
+  const map = new Map<string, number>();
+  let taxRate: number | null = null;
+
+  for (const s of summary) {
+    const key = normalizeLabel(s.label);
+    const val = parseMoneyLoose(String(s.value ?? ""));
+    if (val === null) continue;
+    map.set(key, val);
+    if (taxRate === null && key.includes("tax")) {
+      const p = extractPercentFromLabel(s.label);
+      if (p !== null) taxRate = p;
+    }
+  }
+
+  const subtotal =
+    map.get("subtotal") ??
+    map.get("sub total") ??
+    map.get("sub-total");
+  const discount =
+    map.get("discount") ??
+    map.get("discount amount");
+  const tax =
+    map.get("tax") ??
+    map.get("tax amount") ??
+    map.get("vat");
+  const total =
+    map.get("total") ??
+    map.get("amount due") ??
+    map.get("amount payable") ??
+    map.get("balance due");
+
+  // If we have enough fields, check arithmetic consistency.
+  if (subtotal !== undefined && total !== undefined) {
+    const expected = subtotal + (discount ?? 0) + (tax ?? 0);
+    if (Math.abs(expected - total) > 0.05) return true;
+  }
+
+  // If tax rate is present, verify tax amount against subtotal.
+  if (subtotal !== undefined && tax !== undefined && taxRate !== null) {
+    const expectedTax = (subtotal * taxRate) / 100;
+    if (Math.abs(expectedTax - tax) > 0.1) return true;
+  }
+
+  return false;
+}
 
 // ---------- handler ----------
 export async function POST(request: NextRequest) {
@@ -85,6 +187,14 @@ export async function POST(request: NextRequest) {
   const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
   const baseURL = process.env.ANTHROPIC_BASE_URL;
   const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+  const fallbackModels = (process.env.ANTHROPIC_FALLBACK_MODELS || "")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  const maxTokensRaw = Number(process.env.ANTHROPIC_MAX_TOKENS || DEFAULT_MAX_TOKENS);
+  const maxTokens = Number.isFinite(maxTokensRaw)
+    ? Math.min(MAX_ALLOWED_TOKENS, Math.max(800, Math.trunc(maxTokensRaw)))
+    : DEFAULT_MAX_TOKENS;
 
   if (!apiKey) {
     return NextResponse.json(
@@ -165,30 +275,65 @@ Return ONLY the raw JSON object.`;
       ...(baseURL ? { baseURL } : {}),
     });
 
-    const response = await client.messages.create({
-      model,
-      max_tokens: 4096,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType,
-                data: base64Data,
+    const createMessage = (modelName: string, promptText: string) =>
+      client.messages.create({
+        model: modelName,
+        max_tokens: maxTokens,
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType,
+                  data: base64Data,
+                },
               },
-            },
-            {
-              type: "text",
-              text: userPrompt,
-            },
-          ],
-        },
-      ],
-      system: SYSTEM_PROMPT,
-    });
+              {
+                type: "text",
+                text: promptText,
+              },
+            ],
+          },
+        ],
+        system: SYSTEM_PROMPT,
+      });
+
+    const callWithFallback = async (promptText: string, preferredModel?: string) => {
+      let selectedModel = preferredModel || model;
+      let resp: Awaited<ReturnType<typeof createMessage>>;
+      try {
+        resp = await createMessage(selectedModel, promptText);
+        return { response: resp, usedModel: selectedModel };
+      } catch (firstErr: unknown) {
+        const firstMessage = firstErr instanceof Error ? firstErr.message : String(firstErr);
+        const modelUnsupported =
+          firstMessage.includes("support the requested model") ||
+          firstMessage.includes("unsupported model");
+
+        if (!modelUnsupported || fallbackModels.length === 0) {
+          throw firstErr;
+        }
+
+        for (const fallback of fallbackModels) {
+          if (fallback === selectedModel) continue;
+          try {
+            resp = await createMessage(fallback, promptText);
+            return { response: resp, usedModel: fallback };
+          } catch {
+            // continue to next fallback
+          }
+        }
+        throw firstErr;
+      }
+    };
+
+    const firstPass = await callWithFallback(userPrompt);
+    let usedModel = firstPass.usedModel;
+    const response = firstPass.response;
 
     // 6. Parse Claude's response
     const textBlock = response.content.find((b) => b.type === "text");
@@ -239,6 +384,7 @@ Return ONLY the raw JSON object.`;
           status: 200,
           headers: {
             "X-RateLimit-Remaining": String(remaining),
+            "X-AI-Model": usedModel,
             "Cache-Control": "no-store",
           },
         }
@@ -255,7 +401,43 @@ Return ONLY the raw JSON object.`;
 
     const extractedColumns = Array.isArray(parsed.columns) ? parsed.columns : [];
     const extractedRows = Array.isArray(parsed.rows) ? parsed.rows : [];
-    const summary = Array.isArray(parsed.summary) ? parsed.summary : [];
+    let summary = Array.isArray(parsed.summary) ? parsed.summary : [];
+
+    // 7. Second-pass verification for summary amounts (only when risky/inconsistent)
+    if (shouldVerifySummary(summary)) {
+      try {
+        const verifyPass = await callWithFallback(SUMMARY_VERIFY_PROMPT, usedModel);
+        usedModel = verifyPass.usedModel;
+        const verifyTextBlock = verifyPass.response.content.find((b) => b.type === "text");
+        if (verifyTextBlock && verifyTextBlock.type === "text") {
+          const verifiedSummary = parseSummaryFromText(verifyTextBlock.text);
+          if (verifiedSummary && verifiedSummary.length > 0) {
+            const byLabel = new Map(
+              verifiedSummary.map((s) => [normalizeLabel(s.label), s.value])
+            );
+            summary = summary.map((s) => {
+              const key = normalizeLabel(s.label);
+              const verifiedValue = byLabel.get(key);
+              if (!verifiedValue) return s;
+              if (!verifiedValue.trim()) return s;
+              if (s.value === verifiedValue) return s;
+              if (looksLikeNumericValue(s.value) || looksLikeNumericValue(verifiedValue)) {
+                return { ...s, value: verifiedValue };
+              }
+              return s;
+            });
+            if (summary.length === 0) {
+              summary = verifiedSummary;
+            }
+          }
+        }
+      } catch (verifyErr) {
+        // Verification is best-effort; keep first-pass output if verify fails.
+        const verifyMsg =
+          verifyErr instanceof Error ? verifyErr.message : String(verifyErr);
+        console.warn("Summary verify pass failed:", verifyMsg.slice(0, 180));
+      }
+    }
 
     return NextResponse.json(
       {
@@ -269,6 +451,7 @@ Return ONLY the raw JSON object.`;
         status: 200,
         headers: {
           "X-RateLimit-Remaining": String(remaining),
+          "X-AI-Model": usedModel,
           "Cache-Control": "no-store",
         },
       }
@@ -294,8 +477,29 @@ Return ONLY the raw JSON object.`;
       );
     }
 
+    if (message.includes("support the requested model") || message.includes("unsupported model")) {
+      return NextResponse.json(
+        {
+          error:
+            "Configured model is not supported by your provider. Please update ANTHROPIC_MODEL to one supported by your account.",
+          details: message.slice(0, 240),
+        },
+        { status: 400 }
+      );
+    }
+
+    if (message.toLowerCase().includes("max_tokens")) {
+      return NextResponse.json(
+        {
+          error: "Configured ANTHROPIC_MAX_TOKENS is invalid for this provider/model.",
+          details: message.slice(0, 240),
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "AI extraction failed. Please try again." },
+      { error: "AI extraction failed. Please try again.", details: message.slice(0, 240) },
       { status: 500 }
     );
   }

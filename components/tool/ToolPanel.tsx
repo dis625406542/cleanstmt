@@ -46,6 +46,52 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+function dataUrlToMediaType(dataUrl: string): string | null {
+  const m = dataUrl.match(/^data:([^;]+);base64,/);
+  return m?.[1] ?? null;
+}
+
+async function compressImageBlobIfNeeded(blob: Blob): Promise<Blob> {
+  if (!blob.type.startsWith("image/")) return blob;
+
+  const maxDim = 1400;
+  const minBytesForCompress = 350 * 1024;
+  if (blob.size < minBytesForCompress) return blob;
+
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new window.Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Failed to load image for compression"));
+      image.src = url;
+    });
+
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    if (scale >= 1 && blob.type !== "image/png") return blob;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return blob;
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const outType = "image/jpeg";
+    const outBlob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, outType, 0.72)
+    );
+    if (!outBlob) return blob;
+
+    // Keep original when compressed result is not smaller.
+    return outBlob.size < blob.size ? outBlob : blob;
+  } catch {
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function getMediaType(blob: Blob): string {
   const t = blob.type;
   if (t === "image/png" || t === "image/jpeg" || t === "image/webp" || t === "image/gif") return t;
@@ -118,19 +164,25 @@ export default function ToolPanel({ onStepChange }: ToolPanelProps) {
 
         // For PDFs, we send the rendered preview image; for images, the original
         let imageData: string;
+        let mediaType = "image/png";
         if (uploadedItem.previewUrl?.startsWith("data:")) {
-          imageData = uploadedItem.previewUrl;
+          // Re-compress data URL previews (especially PDF renders/pasted images) to reduce payload.
+          const previewBlob = await (await fetch(uploadedItem.previewUrl)).blob();
+          const optimizedBlob = await compressImageBlobIfNeeded(previewBlob);
+          imageData = await blobToBase64(optimizedBlob);
+          mediaType = getMediaType(optimizedBlob);
+        } else if (uploadedItem.type === "pdf" && uploadedItem.blob) {
+          // Ensure PDFs are always converted to a rendered image before inference.
+          const { renderPdfFirstPage } = await import("@/lib/pdf-preview");
+          imageData = await renderPdfFirstPage(uploadedItem.blob as File);
+          mediaType = dataUrlToMediaType(imageData) || "image/jpeg";
         } else if (uploadedItem.blob) {
-          imageData = await blobToBase64(uploadedItem.blob);
+          const optimizedBlob = await compressImageBlobIfNeeded(uploadedItem.blob);
+          imageData = await blobToBase64(optimizedBlob);
+          mediaType = getMediaType(optimizedBlob);
         } else {
           throw new Error("No image data available");
         }
-
-        const mediaType = uploadedItem.previewUrl?.startsWith("data:image/png")
-          ? "image/png"
-          : uploadedItem.blob
-            ? getMediaType(uploadedItem.blob)
-            : "image/png";
 
         const res = await fetch("/api/extract", {
           method: "POST",

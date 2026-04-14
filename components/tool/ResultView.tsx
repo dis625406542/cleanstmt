@@ -153,11 +153,30 @@ function downloadBlob(content: string, filename: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+function pad2(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+function buildExportBaseName(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const MM = pad2(now.getMonth() + 1);
+  const dd = pad2(now.getDate());
+  const HH = pad2(now.getHours());
+  const mm = pad2(now.getMinutes());
+  const ss = pad2(now.getSeconds());
+  return `CleanStmt_${yyyy}${MM}${dd}${HH}${mm}${ss}`;
+}
+
 function exportCSV(result: ExtractResult) {
   const csvRows = buildSheetRows(result).map((row) =>
     row.map((cell) => `"${(cell ?? "").replace(/"/g, '""')}"`).join(",")
   );
-  downloadBlob(csvRows.join("\n"), "extract.csv", "text/csv;charset=utf-8");
+  downloadBlob(
+    csvRows.join("\n"),
+    `${buildExportBaseName()}.csv`,
+    "text/csv;charset=utf-8"
+  );
 }
 
 function parseMoneyValue(str: string): { isNumber: boolean; value: number } {
@@ -285,36 +304,169 @@ function exportExcel(result: ExtractResult) {
     });
 
     XLSX.utils.book_append_sheet(wb, ws, "Extract");
-    XLSX.writeFile(wb, "extract.xlsx");
+    XLSX.writeFile(wb, `${buildExportBaseName()}.xlsx`);
   });
 }
 
-function exportWord(result: ExtractResult) {
+async function exportWord(result: ExtractResult) {
+  const docx = await import("docx");
+  const {
+    Document,
+    Packer,
+    Paragraph,
+    TextRun,
+    Table,
+    TableRow,
+    TableCell,
+    WidthType,
+    BorderStyle,
+    AlignmentType,
+    ShadingType,
+    TableLayoutType,
+    VerticalAlign,
+  } = docx;
+
+  const BORDER_COLOR = "D4D4D4";
+  const HEADER_BG = "1B2A4A";
+  const LABEL_BG = "F8FAFC";
+  const DEFAULT_FONT_COLOR = "1E293B";
+
+  const withBorder = {
+    top: { style: BorderStyle.SINGLE, size: 1, color: BORDER_COLOR },
+    bottom: { style: BorderStyle.SINGLE, size: 1, color: BORDER_COLOR },
+    left: { style: BorderStyle.SINGLE, size: 1, color: BORDER_COLOR },
+    right: { style: BorderStyle.SINGLE, size: 1, color: BORDER_COLOR },
+  };
+
+  const noBorder = {
+    top: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+    bottom: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+    left: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+    right: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+  };
+
+  const paragraph = (
+    text: string,
+    opts?: { bold?: boolean; color?: string; align?: (typeof AlignmentType)[keyof typeof AlignmentType] }
+  ) =>
+    new Paragraph({
+      alignment: opts?.align,
+      spacing: { before: 0, after: 0 },
+      children: [
+        new TextRun({
+          text: text || "",
+          bold: opts?.bold,
+          color: opts?.color ?? DEFAULT_FONT_COLOR,
+          size: 22,
+        }),
+      ],
+    });
+
   const sheetData = buildSheetRows(result);
   const rowTypes = buildRowTypes(result);
+  const colCount = result.columns.length || 4;
+  const summaryLabelCol = Math.max(colCount - 2, 0);
+  const summaryValueCol = colCount - 1;
 
-  const tableRows = sheetData
-    .map((row, rowIdx) => {
-      const type = rowTypes[rowIdx];
-      if (type === "blank") return "";
-      const isTitle = type === "section-title" || type === "col-header";
-      const isSummary = type === "summary";
-      const bgStyle = isTitle ? "background:#1B2A4A;color:#FFFFFF;font-weight:bold;" : "";
-      const summaryStyle = isSummary ? "font-weight:bold;text-align:right;" : "";
-      const cells = row
-        .map((cell) => `<td style="border:1px solid #D4D4D4;padding:4pt 8pt;font-size:10pt;${bgStyle}${summaryStyle}">${cell ?? ""}</td>`)
-        .join("");
-      return `<tr>${cells}</tr>`;
-    })
-    .filter(Boolean)
-    .join("");
+  const colWeights = new Array(colCount).fill(10);
+  for (let c = 0; c < colCount; c++) {
+    for (let r = 0; r < sheetData.length; r++) {
+      const len = (sheetData[r]?.[c] ?? "").toString().length;
+      colWeights[c] = Math.max(colWeights[c], Math.min(40, len + 2));
+    }
+  }
+  const totalWeight = colWeights.reduce((a, b) => a + b, 0);
+  const colPercents = colWeights.map((w) => Math.max(8, Math.round((w / totalWeight) * 100)));
 
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"><title>Document Extract</title>
-<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;}table{border-collapse:collapse;width:100%;}</style>
-</head><body><table>${tableRows}</table></body></html>`;
+  const tableRows = sheetData.map((row, rowIdx) => {
+    const type = rowTypes[rowIdx] ?? "data";
+    const nonEmptyCols = row
+      .map((cell, idx) => ({ idx, hasText: !!String(cell ?? "").trim() }))
+      .filter((x) => x.hasText)
+      .map((x) => x.idx);
 
-  downloadBlob(html, "extract.doc", "application/msword");
+    const canMergeSectionTitle =
+      type === "section-title" && nonEmptyCols.length === 1 && nonEmptyCols[0] === 0;
+
+    if (canMergeSectionTitle) {
+      return new TableRow({
+        children: [
+          new TableCell({
+            columnSpan: colCount,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: withBorder,
+            shading: { fill: HEADER_BG, color: "auto", type: ShadingType.CLEAR },
+            verticalAlign: VerticalAlign.CENTER,
+            margins: { top: 90, bottom: 90, left: 80, right: 80 },
+            children: [paragraph(row[0] ?? "", { bold: true, color: "FFFFFF" })],
+          }),
+        ],
+      });
+    }
+
+    return new TableRow({
+      children: row.map((raw, c) => {
+        const text = String(raw ?? "");
+        const isBlankRow = type === "blank";
+        const isSummaryLeadingEmpty = type === "summary" && c < summaryLabelCol && !text.trim();
+        const hasMoney = parseMoneyValue(text).isNumber;
+        const isDarkRow = type === "section-title" || type === "col-header";
+        const shouldRightAlign =
+          (type === "summary" && (c === summaryLabelCol || c === summaryValueCol)) ||
+          ((type === "data" || type === "summary") && hasMoney);
+
+        const isBold =
+          type === "col-header" ||
+          type === "section-title" ||
+          (type === "header-field" && c === 0) ||
+          (type === "summary" && (c === summaryLabelCol || c === summaryValueCol));
+
+        const shading =
+          isDarkRow
+            ? { fill: HEADER_BG, color: "auto", type: ShadingType.CLEAR }
+            : type === "header-field" && c === 0
+              ? { fill: LABEL_BG, color: "auto", type: ShadingType.CLEAR }
+              : undefined;
+
+        return new TableCell({
+          width: { size: colPercents[c], type: WidthType.PERCENTAGE },
+          borders: isBlankRow || isSummaryLeadingEmpty ? noBorder : withBorder,
+          shading,
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 70, bottom: 70, left: 70, right: 70 },
+          children: [
+            paragraph(text, {
+              bold: isBold,
+              color: isDarkRow ? "FFFFFF" : DEFAULT_FONT_COLOR,
+              align: shouldRightAlign ? AlignmentType.RIGHT : AlignmentType.LEFT,
+            }),
+          ],
+        });
+      }),
+    });
+  });
+
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            rows: tableRows,
+          }),
+        ],
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${buildExportBaseName()}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function ResultView({
