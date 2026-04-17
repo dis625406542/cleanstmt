@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://cleanstmt.com"),
   title: "CleanStmt - Extract Clean Data from Bank Statements to Excel",
   description:
     "Stop fighting with messy PDFs. Convert bank statements to accounting-ready Excel or QuickBooks CSV in seconds. No merged cells, no formatting issues.",
@@ -46,9 +48,25 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+  const shouldLoadAdsense =
+    typeof adsenseClient === "string" &&
+    adsenseClient.trim().startsWith("ca-pub-");
+
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {shouldLoadAdsense ? (
+          <Script
+            id="adsense-script"
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient.trim()}`}
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
+        ) : null}
+        {children}
+      </body>
     </html>
   );
 }

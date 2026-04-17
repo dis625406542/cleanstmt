@@ -5,6 +5,8 @@ import TrustBar from "@/components/landing/TrustBar";
 import VisualComparison from "@/components/landing/VisualComparison";
 import Features from "@/components/landing/Features";
 import CTA from "@/components/landing/CTA";
+import UseCasesPreview from "@/components/landing/UseCasesPreview";
+import SupportedBanks from "@/components/landing/SupportedBanks";
 import Footer from "@/components/landing/Footer";
 
 export const metadata: Metadata = {
@@ -29,6 +31,9 @@ export const metadata: Metadata = {
     siteName: "CleanStmt",
     type: "website",
   },
+  alternates: {
+    canonical: "https://cleanstmt.com",
+  },
 };
 
 export default function HomePage() {
@@ -41,6 +46,8 @@ export default function HomePage() {
         <VisualComparison />
         <Features />
         <CTA />
+        <UseCasesPreview />
+        <SupportedBanks />
       </main>
       <Footer />
 

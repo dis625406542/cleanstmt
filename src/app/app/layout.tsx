@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Dashboard - CleanStmt",
   description:
     "Upload and convert bank statements to clean Excel or QuickBooks CSV.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

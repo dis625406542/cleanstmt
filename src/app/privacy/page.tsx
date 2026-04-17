@@ -5,7 +5,7 @@ import { ArrowLeft, Shield } from "lucide-react";
 export const metadata: Metadata = {
   title: "Privacy Policy - CleanStmt",
   description:
-    "Learn how CleanStmt protects your financial data. Bank-grade encryption, in-memory processing, automatic deletion.",
+    "Learn how CleanStmt processes statement files, manages cookies, and handles third-party advertising disclosures.",
 };
 
 export default function PrivacyPage() {
@@ -26,26 +26,29 @@ export default function PrivacyPage() {
 
       <div className="prose prose-gray max-w-none">
         <p className="text-lg text-gray-600">
-          At CleanStmt, we take your financial data privacy extremely seriously.
-          This policy explains how we handle your data.
+          At CleanStmt, we take financial data privacy seriously. This Privacy
+          Policy explains what information we process, how we use it, and how we
+          handle third-party services including advertising providers.
         </p>
+        <p className="mt-2 text-sm text-gray-500">Last updated: April 17, 2026</p>
 
         <h2 className="mt-10 text-xl font-bold text-gray-900">
-          Data Processing
+          Statement File Processing
         </h2>
         <ul className="mt-4 space-y-3 text-gray-600">
           <li className="flex gap-3">
             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
             <span>
               All file processing occurs <strong>entirely in memory</strong>.
-              Your bank statements are never written to permanent disk storage.
+              Uploaded statement files are not written to permanent storage as
+              part of normal processing.
             </span>
           </li>
           <li className="flex gap-3">
             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
             <span>
-              Files are encrypted with <strong>256-bit SSL</strong> during
-              transit between your browser and our servers.
+              Files are encrypted in transit over HTTPS between your browser and
+              our servers.
             </span>
           </li>
           <li className="flex gap-3">
@@ -53,19 +56,30 @@ export default function PrivacyPage() {
             <span>
               All data is{" "}
               <strong>automatically destroyed within 1 hour</strong> of
-              processing, regardless of whether you download the results.
+              processing, regardless of whether you download the exported file.
             </span>
           </li>
         </ul>
 
         <h2 className="mt-10 text-xl font-bold text-gray-900">
-          No Human Review
+          What We Collect
         </h2>
-        <p className="mt-3 text-gray-600">
-          Your financial documents are processed exclusively by AI. No human
-          employee will ever view, access, or review your bank statements. Our
-          systems are designed with zero-access architecture.
-        </p>
+        <ul className="mt-4 space-y-3 text-gray-600">
+          <li className="flex gap-3">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+            <span>
+              Temporary processing data required to extract and format your
+              table output.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+            <span>
+              Basic technical diagnostics such as browser type, request timing,
+              and error logs for reliability and abuse prevention.
+            </span>
+          </li>
+        </ul>
 
         <h2 className="mt-10 text-xl font-bold text-gray-900">
           What We Don&apos;t Collect
@@ -77,13 +91,56 @@ export default function PrivacyPage() {
           </li>
           <li className="flex gap-3">
             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-            <span>We do not retain extracted transaction data</span>
+            <span>
+              We do not keep extracted transaction rows after the retention
+              window used for processing and delivery.
+            </span>
           </li>
           <li className="flex gap-3">
             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-            <span>We do not sell or share any user data with third parties</span>
+            <span>
+              We do not sell uploaded financial document content to third
+              parties.
+            </span>
           </li>
         </ul>
+
+        <h2 className="mt-10 text-xl font-bold text-gray-900">
+          Cookies and Analytics
+        </h2>
+        <p className="mt-3 text-gray-600">
+          We may use cookies or similar technologies to improve site performance,
+          measure traffic, and understand feature usage. You can control cookie
+          behavior from your browser settings.
+        </p>
+
+        <h2 className="mt-10 text-xl font-bold text-gray-900">
+          Third-Party Advertising (Google AdSense)
+        </h2>
+        <p className="mt-3 text-gray-600">
+          We may display third-party advertisements, including Google AdSense.
+          These providers may use cookies to show ads based on your visits to
+          this and other websites. You can learn more about Google advertising
+          controls at{" "}
+          <a
+            href="https://adssettings.google.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-brand-600 hover:underline"
+          >
+            adssettings.google.com
+          </a>
+          .
+        </p>
+
+        <h2 className="mt-10 text-xl font-bold text-gray-900">
+          Your Rights and Choices
+        </h2>
+        <p className="mt-3 text-gray-600">
+          Depending on your jurisdiction, you may have rights to request access,
+          correction, or deletion of personal information we hold. To submit a
+          request, contact us using the email below.
+        </p>
 
         <h2 className="mt-10 text-xl font-bold text-gray-900">Contact</h2>
         <p className="mt-3 text-gray-600">

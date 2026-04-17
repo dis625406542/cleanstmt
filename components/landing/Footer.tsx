@@ -11,10 +11,19 @@ export default function Footer() {
           </div>
           <span className="text-sm font-semibold text-navy-900">CleanStmt</span>
         </div>
-        <div className="flex items-center gap-6 text-xs text-navy-400">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-navy-400 sm:justify-end">
+          <Link href="/about" className="hover:text-navy-700">
+            About Us
+          </Link>
           <Link href="/privacy" className="hover:text-navy-700">
             Privacy Policy
           </Link>
+          <Link href="/terms" className="hover:text-navy-700">
+            Terms of Service
+          </Link>
+          <a href="mailto:support@cleanstmt.com" className="hover:text-navy-700">
+            Contact
+          </a>
           <span>
             &copy; {new Date().getFullYear()} CleanStmt. All rights reserved.
           </span>
