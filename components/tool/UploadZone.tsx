@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
 interface UploadZoneProps {
   onFileAccepted: (file: File) => void;
   onImagePasted: (dataUrl: string, blob: Blob) => void;
+  onFileTooLarge?: (sizeInMB: number) => void;
 }
 
 export default function UploadZone({
   onFileAccepted,
   onImagePasted,
+  onFileTooLarge,
 }: UploadZoneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -24,13 +26,25 @@ export default function UploadZone({
     [onFileAccepted]
   );
 
+  const onDropRejected = useCallback(
+    (rejectedFiles: { file: File; errors: { code: string }[] }[]) => {
+      const first = rejectedFiles[0];
+      if (first?.errors.some((e) => e.code === "file-too-large")) {
+        const sizeInMB = Math.round((first.file.size / (1024 * 1024)) * 10) / 10;
+        onFileTooLarge?.(sizeInMB);
+      }
+    },
+    [onFileTooLarge]
+  );
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: {
       "application/pdf": [".pdf"],
       "image/*": [".png", ".jpg", ".jpeg", ".webp"],
     },
-    maxSize: 20 * 1024 * 1024,
+    maxSize: 10 * 1024 * 1024,
     multiple: false,
   });
 
@@ -106,7 +120,7 @@ export default function UploadZone({
             Paste supported
           </div>
           <span className="text-navy-200">|</span>
-          <span className="text-[10px] text-navy-400">Max 20 MB</span>
+          <span className="text-[10px] text-navy-400">Max 10 MB</span>
         </div>
       </div>
 

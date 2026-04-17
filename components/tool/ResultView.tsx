@@ -646,16 +646,16 @@ export default function ResultView({
           ))}
 
           {/* Data table */}
-          <table className="w-full text-[12px]">
+          <table className="w-full border-collapse text-[12px]">
             <thead className="sticky top-0 z-10">
-              <tr className="border-b border-navy-100 bg-[#1B2A4A]">
-                <th className="w-[36px] px-2 py-2.5 text-center text-[10px] font-semibold text-white">
+              <tr className="bg-[#1B2A4A]">
+                <th className="w-[36px] border-b-2 border-r border-navy-600 px-2 py-2.5 text-center text-[10px] font-semibold text-white">
                   #
                 </th>
                 {result.columns.map((col, i) => (
                   <th
                     key={i}
-                    className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-white"
+                    className="border-b-2 border-r border-navy-600 px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-white last:border-r-0"
                   >
                     {col}
                   </th>
@@ -667,11 +667,11 @@ export default function ResultView({
                 <tr
                   key={rowIdx}
                   className={cn(
-                    "border-b border-navy-50 transition-colors hover:bg-brand-50/30",
-                    rowIdx % 2 === 1 && "bg-navy-50/30"
+                    "border-b border-navy-200 transition-colors hover:bg-brand-50/40",
+                    rowIdx % 2 === 1 ? "bg-navy-50/50" : "bg-white"
                   )}
                 >
-                  <td className="px-2 py-2 text-center font-mono text-[10px] text-navy-300">
+                  <td className="border-r border-navy-200 px-2 py-2 text-center font-mono text-[10px] text-navy-400">
                     {rowIdx + 1}
                   </td>
                   {row.map((cell, colIdx) => {
@@ -680,7 +680,7 @@ export default function ResultView({
                     return (
                       <td
                         key={colIdx}
-                        className="px-3 py-2 text-navy-700"
+                        className="border-r border-navy-200 px-3 py-2 text-navy-700 last:border-r-0"
                         onDoubleClick={() => startEdit(rowIdx, colIdx, cell ?? "")}
                       >
                         {isEditing ? (
@@ -725,8 +725,8 @@ export default function ResultView({
 
       {/* Bottom bar */}
       <div className="flex items-center justify-between border-t border-surface-300 bg-surface-50 px-5 py-2.5">
-        <p className="text-[11px] text-navy-400">
-          Double-click any cell to edit
+        <p className="text-xs font-semibold text-brand-600">
+          ✏️ Double-click any cell to edit
         </p>
         <div className="flex items-center gap-2">
           <button

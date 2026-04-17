@@ -239,10 +239,14 @@ export default function ToolPanel({ onStepChange }: ToolPanelProps) {
     }
   }, [step]);
 
+  const handleFileTooLarge = useCallback((sizeInMB: number) => {
+    setError(`File too large (${sizeInMB} MB). Maximum allowed size is 10 MB.`);
+  }, []);
+
   return (
     <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-surface-300 bg-white shadow-modal ring-1 ring-black/[0.03]">
       {/* Error banner */}
-      {error && step === "preview" && (
+      {error && (step === "preview" || step === "upload") && (
         <div className="flex items-center gap-2 border-b border-red-200 bg-red-50 px-5 py-2.5">
           <span className="text-xs font-medium text-red-700">{error}</span>
           <button
@@ -258,6 +262,7 @@ export default function ToolPanel({ onStepChange }: ToolPanelProps) {
         <UploadZone
           onFileAccepted={handleFileAccepted}
           onImagePasted={handleImagePasted}
+          onFileTooLarge={handleFileTooLarge}
         />
       )}
       {step === "preview" && uploadedItem && (

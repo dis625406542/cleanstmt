@@ -59,19 +59,19 @@ export default function DataGrid({ rows, onRowUpdate }: DataGridProps) {
   }, []);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-navy-200 bg-white">
+    <div className="overflow-hidden rounded-xl border-2 border-navy-300 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-navy-100 bg-navy-50">
-              <th className="w-[44px] px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-navy-400">
+            <tr className="bg-navy-700">
+              <th className="w-[44px] border-b-2 border-r border-navy-600 px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-white">
                 #
               </th>
               {columns.map((col) => (
                 <th
                   key={col.key}
                   className={cn(
-                    "px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-navy-400",
+                    "border-b-2 border-r border-navy-600 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-white last:border-r-0",
                     col.width,
                     col.align === "right" ? "text-right" : "text-left"
                   )}
@@ -86,11 +86,11 @@ export default function DataGrid({ rows, onRowUpdate }: DataGridProps) {
               <tr
                 key={row.id}
                 className={cn(
-                  "border-b border-navy-50 transition-colors last:border-0 hover:bg-navy-50/50",
-                  idx % 2 === 1 && "bg-navy-50/30"
+                  "border-b border-navy-200 transition-colors last:border-0 hover:bg-brand-50/60",
+                  idx % 2 === 1 ? "bg-navy-50/60" : "bg-white"
                 )}
               >
-                <td className="px-3 py-2.5 font-mono text-[11px] text-navy-300">
+                <td className="border-r border-navy-200 px-3 py-2.5 font-mono text-[11px] text-navy-400">
                   {idx + 1}
                 </td>
                 {columns.map((col) => {
@@ -103,7 +103,7 @@ export default function DataGrid({ rows, onRowUpdate }: DataGridProps) {
                     <td
                       key={col.key}
                       className={cn(
-                        "px-3 py-2.5",
+                        "border-r border-navy-200 px-3 py-2.5 last:border-r-0",
                         col.align === "right" ? "text-right" : "text-left",
                         col.key === "debit" && cellValue
                           ? "font-mono text-red-500"
@@ -149,11 +149,11 @@ export default function DataGrid({ rows, onRowUpdate }: DataGridProps) {
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-navy-100 bg-navy-50 px-4 py-2.5">
-        <p className="text-[11px] font-medium text-navy-500">
+      <div className="flex items-center justify-between border-t-2 border-navy-200 bg-navy-50 px-4 py-3">
+        <p className="text-xs font-semibold text-navy-600">
           {rows.length} rows &middot; No merged cells
         </p>
-        <p className="text-[11px] text-navy-400">Double-click to edit</p>
+        <p className="text-xs font-semibold text-brand-600">✏️ Double-click any cell to edit</p>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import DataGrid, { type GridRow } from "@/components/app/DataGrid";
@@ -26,8 +26,36 @@ const MOCK_DATA: GridRow[] = [
   { id: "12", date: "01/31/2025", description: "QuickBooks Subscription", category: "Software", debit: "$55.00", credit: "", balance: "$16,211.82" },
 ];
 
+function buildRowsFromExtraction(data: {
+  columns?: string[];
+  rows?: string[][];
+}): GridRow[] | null {
+  if (!data.columns || !data.rows || data.rows.length === 0) return null;
+  return data.rows.map((row, i) => {
+    const obj: Record<string, string> = { id: String(i + 1) };
+    data.columns!.forEach((col, j) => {
+      obj[col] = row[j] ?? "";
+    });
+    return obj as GridRow;
+  });
+}
+
 export default function ReviewPage() {
   const [rows, setRows] = useState<GridRow[]>(MOCK_DATA);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("extractResult");
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      const extracted = buildRowsFromExtraction(data);
+      if (extracted && extracted.length > 0) {
+        setRows(extracted);
+      }
+    } catch {
+      // fall back to mock data silently
+    }
+  }, []);
 
   const handleRowUpdate = useCallback(
     (id: string, field: keyof GridRow, value: string) => {
@@ -52,7 +80,7 @@ export default function ReviewPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             Review &amp; Export
           </h1>
-          <p className="mt-0.5 text-sm text-gray-500">
+          <p className="mt-0.5 text-base font-semibold text-brand-600">
             Double-click any cell to correct extracted data
           </p>
         </div>

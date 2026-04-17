@@ -8,40 +8,80 @@ import SnippetPaste from "@/components/app/SnippetPaste";
 import ProcessingState from "@/components/app/ProcessingState";
 import { generateId } from "@/lib/utils";
 
-type PageState = "idle" | "processing" | "done";
+type PageState = "idle" | "processing" | "done" | "error";
 type ProcessingStep = "uploading" | "extracting" | "cleaning" | "done";
+
+async function fileToBase64(file: File): Promise<{ base64: string; mediaType: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      const [prefix, base64] = dataUrl.split(",");
+      const mediaType = prefix.match(/:(.*?);/)?.[1] ?? file.type;
+      resolve({ base64, mediaType });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [pageState, setPageState] = useState<PageState>("idle");
-  const [processingStep, setProcessingStep] =
-    useState<ProcessingStep>("uploading");
+  const [processingStep, setProcessingStep] = useState<ProcessingStep>("uploading");
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
-  const simulateProcessing = useCallback(() => {
-    setPageState("processing");
-    setProcessingStep("uploading");
+  const runExtraction = useCallback(
+    async (base64: string, mediaType: string) => {
+      setPageState("processing");
+      setProcessingStep("uploading");
 
-    setTimeout(() => setProcessingStep("extracting"), 1200);
-    setTimeout(() => setProcessingStep("cleaning"), 2800);
-    setTimeout(() => {
-      setProcessingStep("done");
-      setPageState("done");
-      setTimeout(() => router.push("/app/review"), 800);
-    }, 4200);
-  }, [router]);
+      try {
+        setProcessingStep("extracting");
+        const res = await fetch("/api/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, mediaType }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Extraction failed");
+        }
+
+        setProcessingStep("cleaning");
+        sessionStorage.setItem("extractResult", JSON.stringify(data));
+
+        setProcessingStep("done");
+        setPageState("done");
+        router.push("/app/review");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        setErrorMessage(msg);
+        setPageState("error");
+      }
+    },
+    [router]
+  );
 
   const handleFilesAccepted = useCallback(
-    (files: File[]) => {
-      const newFiles: UploadedFile[] = files.map((file) => ({
+    async (files: File[]) => {
+      const file = files[0];
+      if (!file) return;
+
+      const newFiles: UploadedFile[] = files.map((f) => ({
         id: generateId(),
-        file,
+        file: f,
         status: "pending" as const,
       }));
       setUploadedFiles((prev) => [...prev, ...newFiles]);
-      simulateProcessing();
+
+      const { base64, mediaType } = await fileToBase64(file);
+      await runExtraction(base64, mediaType);
     },
-    [simulateProcessing]
+    [runExtraction]
   );
 
   const handleRemoveFile = useCallback((id: string) => {
@@ -49,11 +89,28 @@ export default function DashboardPage() {
   }, []);
 
   const handleImagePasted = useCallback(
-    (_dataUrl: string, _blob: Blob) => {
-      simulateProcessing();
+    async (dataUrl: string, blob: Blob) => {
+      const [prefix, base64] = dataUrl.split(",");
+      const mediaType = prefix.match(/:(.*?);/)?.[1] ?? blob.type;
+      await runExtraction(base64, mediaType);
     },
-    [simulateProcessing]
+    [runExtraction]
   );
+
+  if (pageState === "error") {
+    return (
+      <div>
+        <h1 className="mb-4 text-2xl font-bold text-gray-900">Extraction Failed</h1>
+        <p className="mb-6 text-sm text-red-600">{errorMessage}</p>
+        <button
+          onClick={() => { setPageState("idle"); setUploadedFiles([]); }}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   if (pageState === "processing" || pageState === "done") {
     return (

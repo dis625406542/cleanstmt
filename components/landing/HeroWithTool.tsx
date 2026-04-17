@@ -19,7 +19,7 @@ export default function HeroWithTool() {
   }, []);
 
   return (
-    <section className="pb-16 pt-24 lg:pt-28">
+    <section id="upload-tool" className="pb-16 pt-24 lg:pt-28">
       <div className="mx-auto max-w-[1440px] px-6 lg:px-10 xl:px-16">
         <div
           className={cn(

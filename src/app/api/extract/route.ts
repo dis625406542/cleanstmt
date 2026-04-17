@@ -5,7 +5,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 // ---------- security: only allow POST ----------
 export const runtime = "nodejs";
 
-const MAX_BODY_SIZE = 20 * 1024 * 1024; // 20 MB
+const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
 const DEFAULT_MAX_TOKENS = 12000;
 const MAX_ALLOWED_TOKENS = 12000;
 
@@ -38,7 +38,8 @@ Strict rules:
 8. Monetary accuracy is critical: for every amount/number in header, rows, and summary, read digit-by-digit and copy exactly from the document text.
 9. Never "correct", round, or infer numeric values. Do not swap similar digits (5/9, 3/8, 0/6, 1/7).
 10. If any digit is uncertain, return empty string "" for that value instead of guessing.
-11. Return ONLY valid JSON (no markdown, no commentary).`;
+11. Return ONLY valid JSON (no markdown, no commentary).
+12. "summary" must contain ONLY numeric totals/subtotals/tax/discount lines at the bottom of the document. Payment method blocks, bank info, contact info, or any non-numeric descriptive groups must go into "sections", never into "summary".`;
 
 const USER_PROMPT_BASE = `Analyze this financial document image. Extract ALL information into a JSON object with these 5 sections:
 
@@ -62,109 +63,6 @@ const USER_PROMPT_BASE = `Analyze this financial document image. Extract ALL inf
 
 Return ONLY the raw JSON object.`;
 
-const SUMMARY_VERIFY_PROMPT = `Re-read the SAME document image and verify ONLY totals/summary values with strict digit accuracy.
-
-Rules:
-1. Return ONLY this JSON shape: {"summary":[{"label":"...","value":"..."}]}
-2. Copy each summary value exactly as printed (currency symbol, commas, decimals, sign).
-3. Read numbers character-by-character and do not infer.
-4. If unsure, use empty string "".
-5. No markdown, no extra text.`;
-
-function normalizeLabel(s: string): string {
-  return (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function looksLikeNumericValue(s: string): boolean {
-  const t = (s || "").trim();
-  return /\d/.test(t) && (/[$€£¥]/.test(t) || /[\d.,()%+-]/.test(t));
-}
-
-function parseSummaryFromText(rawText: string): { label: string; value: string }[] | null {
-  let txt = rawText.trim();
-  if (txt.startsWith("```")) {
-    txt = txt.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-  }
-  try {
-    const parsed = JSON.parse(txt) as { summary?: { label?: string; value?: string }[] };
-    if (!Array.isArray(parsed.summary)) return null;
-    return parsed.summary.map((s) => ({
-      label: String(s?.label ?? ""),
-      value: String(s?.value ?? ""),
-    }));
-  } catch {
-    return null;
-  }
-}
-
-function parseMoneyLoose(value: string): number | null {
-  const s = (value || "").trim();
-  if (!s) return null;
-  const negativeByParen = s.startsWith("(") && s.endsWith(")");
-  const cleaned = s.replace(/[,$€£¥%\s]/g, "").replace(/[()]/g, "");
-  const num = Number(cleaned);
-  if (!Number.isFinite(num)) return null;
-  return negativeByParen ? -Math.abs(num) : num;
-}
-
-function extractPercentFromLabel(label: string): number | null {
-  const m = label.match(/(\d+(?:\.\d+)?)\s*%/);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) ? n : null;
-}
-
-function shouldVerifySummary(summary: { label: string; value: string }[]): boolean {
-  if (!summary || summary.length === 0) return false;
-
-  // Missing/empty values should always trigger verification.
-  if (summary.some((s) => !String(s.value ?? "").trim())) return true;
-
-  const map = new Map<string, number>();
-  let taxRate: number | null = null;
-
-  for (const s of summary) {
-    const key = normalizeLabel(s.label);
-    const val = parseMoneyLoose(String(s.value ?? ""));
-    if (val === null) continue;
-    map.set(key, val);
-    if (taxRate === null && key.includes("tax")) {
-      const p = extractPercentFromLabel(s.label);
-      if (p !== null) taxRate = p;
-    }
-  }
-
-  const subtotal =
-    map.get("subtotal") ??
-    map.get("sub total") ??
-    map.get("sub-total");
-  const discount =
-    map.get("discount") ??
-    map.get("discount amount");
-  const tax =
-    map.get("tax") ??
-    map.get("tax amount") ??
-    map.get("vat");
-  const total =
-    map.get("total") ??
-    map.get("amount due") ??
-    map.get("amount payable") ??
-    map.get("balance due");
-
-  // If we have enough fields, check arithmetic consistency.
-  if (subtotal !== undefined && total !== undefined) {
-    const expected = subtotal + (discount ?? 0) + (tax ?? 0);
-    if (Math.abs(expected - total) > 0.05) return true;
-  }
-
-  // If tax rate is present, verify tax amount against subtotal.
-  if (subtotal !== undefined && tax !== undefined && taxRate !== null) {
-    const expectedTax = (subtotal * taxRate) / 100;
-    if (Math.abs(expectedTax - tax) > 0.1) return true;
-  }
-
-  return false;
-}
 
 // ---------- handler ----------
 export async function POST(request: NextRequest) {
@@ -209,7 +107,7 @@ export async function POST(request: NextRequest) {
     const raw = await request.text();
     if (raw.length > MAX_BODY_SIZE) {
       return NextResponse.json(
-        { error: "File too large. Maximum 20 MB." },
+        { error: "File too large. Maximum 10 MB." },
         { status: 413 }
       );
     }
@@ -401,43 +299,7 @@ Return ONLY the raw JSON object.`;
 
     const extractedColumns = Array.isArray(parsed.columns) ? parsed.columns : [];
     const extractedRows = Array.isArray(parsed.rows) ? parsed.rows : [];
-    let summary = Array.isArray(parsed.summary) ? parsed.summary : [];
-
-    // 7. Second-pass verification for summary amounts (only when risky/inconsistent)
-    if (shouldVerifySummary(summary)) {
-      try {
-        const verifyPass = await callWithFallback(SUMMARY_VERIFY_PROMPT, usedModel);
-        usedModel = verifyPass.usedModel;
-        const verifyTextBlock = verifyPass.response.content.find((b) => b.type === "text");
-        if (verifyTextBlock && verifyTextBlock.type === "text") {
-          const verifiedSummary = parseSummaryFromText(verifyTextBlock.text);
-          if (verifiedSummary && verifiedSummary.length > 0) {
-            const byLabel = new Map(
-              verifiedSummary.map((s) => [normalizeLabel(s.label), s.value])
-            );
-            summary = summary.map((s) => {
-              const key = normalizeLabel(s.label);
-              const verifiedValue = byLabel.get(key);
-              if (!verifiedValue) return s;
-              if (!verifiedValue.trim()) return s;
-              if (s.value === verifiedValue) return s;
-              if (looksLikeNumericValue(s.value) || looksLikeNumericValue(verifiedValue)) {
-                return { ...s, value: verifiedValue };
-              }
-              return s;
-            });
-            if (summary.length === 0) {
-              summary = verifiedSummary;
-            }
-          }
-        }
-      } catch (verifyErr) {
-        // Verification is best-effort; keep first-pass output if verify fails.
-        const verifyMsg =
-          verifyErr instanceof Error ? verifyErr.message : String(verifyErr);
-        console.warn("Summary verify pass failed:", verifyMsg.slice(0, 180));
-      }
-    }
+    const summary = Array.isArray(parsed.summary) ? parsed.summary : [];
 
     return NextResponse.json(
       {
