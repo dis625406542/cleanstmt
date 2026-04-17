@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useEffect, useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type FileRejection } from "react-dropzone";
 import Image from "next/image";
 import { CloudUpload, Clipboard, ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,7 +44,7 @@ export default function UploadZone({
   );
 
   const onDropRejected = useCallback(
-    (rejectedFiles: { file: File; errors: { code: string }[] }[]) => {
+    (rejectedFiles: FileRejection[]) => {
       const first = rejectedFiles[0];
       if (first?.errors.some((e) => e.code === "file-too-large")) {
         const sizeInMB = Math.round((first.file.size / (1024 * 1024)) * 10) / 10;

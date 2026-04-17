@@ -31,13 +31,22 @@ function buildRowsFromExtraction(data: {
   rows?: string[][];
 }): GridRow[] | null {
   if (!data.columns || !data.rows || data.rows.length === 0) return null;
-  return data.rows.map((row, i) => {
-    const obj: Record<string, string> = { id: String(i + 1) };
-    data.columns!.forEach((col, j) => {
-      obj[col] = row[j] ?? "";
-    });
-    return obj as GridRow;
-  });
+  const normalizedColumns = data.columns.map((col) => col.trim().toLowerCase());
+
+  const getValue = (row: string[], aliases: string[]) => {
+    const index = normalizedColumns.findIndex((col) => aliases.includes(col));
+    return index >= 0 ? row[index] ?? "" : "";
+  };
+
+  return data.rows.map((row, i) => ({
+    id: String(i + 1),
+    date: getValue(row, ["date", "transaction date", "posted date"]),
+    description: getValue(row, ["description", "memo", "details", "narration"]),
+    category: getValue(row, ["category", "type"]),
+    debit: getValue(row, ["debit", "withdrawal", "outflow"]),
+    credit: getValue(row, ["credit", "deposit", "inflow"]),
+    balance: getValue(row, ["balance", "running balance"]),
+  }));
 }
 
 export default function ReviewPage() {
