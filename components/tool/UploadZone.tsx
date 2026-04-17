@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import Image from "next/image";
-import { CloudUpload, Clipboard, ArrowRight } from "lucide-react";
+import { CloudUpload, Clipboard, ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UploadZoneProps {
@@ -18,6 +18,23 @@ export default function UploadZone({
   onFileTooLarge,
 }: UploadZoneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const autoLoadHandledRef = useRef(false);
+  const [loadingExample, setLoadingExample] = useState(false);
+
+  const handleLoadExample = useCallback(async () => {
+    if (loadingExample) return;
+    setLoadingExample(true);
+    try {
+      const res = await fetch("/demo.png");
+      const blob = await res.blob();
+      const file = new File([blob], "demo.png", { type: "image/png" });
+      onFileAccepted(file);
+    } catch (err) {
+      console.error("Failed to load example:", err);
+    } finally {
+      setLoadingExample(false);
+    }
+  }, [loadingExample, onFileAccepted]);
 
   const onDrop = useCallback(
     (accepted: File[]) => {
@@ -74,6 +91,21 @@ export default function UploadZone({
     };
   }, [onImagePasted]);
 
+  useEffect(() => {
+    if (autoLoadHandledRef.current || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("example") !== "1") return;
+
+    autoLoadHandledRef.current = true;
+    void handleLoadExample();
+
+    // Avoid re-triggering on refresh while keeping the current anchor position.
+    params.delete("example");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+  }, [handleLoadExample]);
+
   return (
     <div
       ref={containerRef}
@@ -122,6 +154,25 @@ export default function UploadZone({
           <span className="text-navy-200">|</span>
           <span className="text-[10px] text-navy-400">Max 10 MB</span>
         </div>
+
+        {/* Load Example button */}
+        <button
+          onClick={handleLoadExample}
+          disabled={loadingExample}
+          className={cn(
+            "mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium transition-all duration-200",
+            loadingExample
+              ? "cursor-not-allowed border-navy-100 bg-navy-50 text-navy-300"
+              : "border-brand-200 bg-brand-50/60 text-brand-700 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-800 active:scale-[0.98]"
+          )}
+        >
+          {loadingExample ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+          {loadingExample ? "Loading…" : "Try an Example"}
+        </button>
       </div>
 
       {/* Right: large demo mockup preview */}
