@@ -3,13 +3,14 @@ import Link from "next/link";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { useCases } from "@/lib/use-cases";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Statement Conversion Use Cases | CleanStmt",
   description:
     "Explore high-intent statement conversion workflows including bank reconciliation and QuickBooks CSV imports.",
   alternates: {
-    canonical: "https://cleanstmt.com/use-cases",
+    canonical: absoluteUrl("/use-cases"),
   },
 };
 

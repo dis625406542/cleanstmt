@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
 import { banks } from "@/lib/banks";
 import { useCases } from "@/lib/use-cases";
+import { SITE_URL } from "@/lib/site-url";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://cleanstmt.com";
+  const baseUrl = SITE_URL;
   const now = new Date();
 
   const staticPages: MetadataRoute.Sitemap = [

@@ -8,31 +8,43 @@ import CTA from "@/components/landing/CTA";
 import UseCasesPreview from "@/components/landing/UseCasesPreview";
 import SupportedBanks from "@/components/landing/SupportedBanks";
 import Footer from "@/components/landing/Footer";
+import { SITE_URL } from "@/lib/site-url";
 
 export const metadata: Metadata = {
-  title: "CleanStmt - Convert Bank Statements to Excel in Seconds",
+  title:
+    "Bank Statement to Excel & QuickBooks CSV Converter | No Merged Cells | CleanStmt",
   description:
-    "AI-powered bank statement converter for CPAs and bookkeepers. Upload PDF or paste screenshot, get clean Excel or QuickBooks CSV with no merged cells. Free, no signup required.",
+    "AI-powered bank statement converter for CPAs and bookkeepers. Convert PDF statements to Excel or QuickBooks-ready CSV with no merged cells, stable columns, and reconciliation-friendly output.",
   keywords: [
-    "bank statement to Excel",
-    "PDF bank statement converter",
-    "QuickBooks CSV import",
-    "CPA tools",
+    "bank statement to excel",
+    "pdf bank statement converter",
+    "quickbooks csv import",
+    "bank statement converter",
+    "bank statement parser",
+    "bank reconciliation",
+    "cpa tools",
     "bookkeeper tools",
     "no merged cells",
-    "bank statement parser",
-    "AI data extraction",
+    "ai data extraction",
   ],
   openGraph: {
-    title: "CleanStmt - Convert Bank Statements to Excel in Seconds",
+    title:
+      "Bank Statement to Excel & QuickBooks CSV Converter | No Merged Cells | CleanStmt",
     description:
-      "Upload a bank statement PDF or paste a screenshot. Get clean, structured Excel data instantly. No merged cells.",
-    url: "https://cleanstmt.com",
+      "Convert bank statement PDFs to clean Excel and QuickBooks-ready CSV with AI extraction. Built for reconciliation workflows with no merged cells.",
+    url: SITE_URL,
     siteName: "CleanStmt",
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title:
+      "Bank Statement to Excel & QuickBooks CSV Converter | No Merged Cells | CleanStmt",
+    description:
+      "AI-powered converter for bank statement PDFs to Excel and QuickBooks CSV with clean columns and no merged cells.",
+  },
   alternates: {
-    canonical: "https://cleanstmt.com",
+    canonical: SITE_URL,
   },
 };
 

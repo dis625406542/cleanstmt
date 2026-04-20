@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { SITE_URL } from "@/lib/site-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://cleanstmt.com"),
+  metadataBase: new URL(SITE_URL),
   title: "CleanStmt - Extract Clean Data from Bank Statements to Excel",
   description:
     "Stop fighting with messy PDFs. Convert bank statements to accounting-ready Excel or QuickBooks CSV in seconds. No merged cells, no formatting issues.",
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
     title: "CleanStmt - Extract Clean Data from Bank Statements",
     description:
       "Convert messy bank statement PDFs to clean Excel or QuickBooks CSV. Built for CPAs and bookkeepers.",
-    url: "https://cleanstmt.com",
+    url: SITE_URL,
     siteName: "CleanStmt",
     type: "website",
   },

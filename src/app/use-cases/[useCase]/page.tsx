@@ -6,6 +6,7 @@ import Footer from "@/components/landing/Footer";
 import CollapsibleToolHero from "@/components/landing/CollapsibleToolHero";
 import { banks } from "@/lib/banks";
 import { getUseCaseById, useCases } from "@/lib/use-cases";
+import { absoluteUrl } from "@/lib/site-url";
 
 interface UseCasePageProps {
   params: {
@@ -29,7 +30,7 @@ export async function generateMetadata({
     };
   }
 
-  const url = `https://cleanstmt.com/use-cases/${useCaseItem.id}`;
+  const url = absoluteUrl(`/use-cases/${useCaseItem.id}`);
   return {
     title: useCaseItem.title,
     description: useCaseItem.description,
@@ -66,19 +67,19 @@ export default function UseCasePage({ params }: UseCasePageProps) {
         "@type": "ListItem",
         position: 1,
         name: "Home",
-        item: "https://cleanstmt.com",
+        item: absoluteUrl("/"),
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Use Cases",
-        item: "https://cleanstmt.com/use-cases",
+        item: absoluteUrl("/use-cases"),
       },
       {
         "@type": "ListItem",
         position: 3,
         name: useCaseItem.h1,
-        item: `https://cleanstmt.com/use-cases/${useCaseItem.id}`,
+        item: absoluteUrl(`/use-cases/${useCaseItem.id}`),
       },
     ],
   };

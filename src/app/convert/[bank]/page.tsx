@@ -12,6 +12,7 @@ import {
   getSegmentLabel,
 } from "@/lib/banks";
 import { useCases } from "@/lib/use-cases";
+import { absoluteUrl } from "@/lib/site-url";
 
 interface BankPageProps {
   params: {
@@ -136,7 +137,7 @@ export async function generateMetadata({
   }
 
   const { title, description } = getMetadataTemplate(bank);
-  const url = `https://cleanstmt.com/convert/${bank.id}`;
+  const url = absoluteUrl(`/convert/${bank.id}`);
 
   return {
     title,
@@ -203,19 +204,19 @@ export default function ConvertBankPage({ params }: BankPageProps) {
         "@type": "ListItem",
         position: 1,
         name: "Home",
-        item: "https://cleanstmt.com",
+        item: absoluteUrl("/"),
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Bank Converters",
-        item: "https://cleanstmt.com/convert",
+        item: absoluteUrl("/convert"),
       },
       {
         "@type": "ListItem",
         position: 3,
         name: bank.shortName,
-        item: `https://cleanstmt.com/convert/${bank.id}`,
+        item: absoluteUrl(`/convert/${bank.id}`),
       },
     ],
   };
@@ -227,7 +228,7 @@ export default function ConvertBankPage({ params }: BankPageProps) {
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description: `Convert ${bank.shortName} bank statements to Excel and QuickBooks-ready CSV with no merged cells.`,
-    url: `https://cleanstmt.com/convert/${bank.id}`,
+    url: absoluteUrl(`/convert/${bank.id}`),
     offers: {
       "@type": "Offer",
       price: "0",

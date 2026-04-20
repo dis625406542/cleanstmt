@@ -8,19 +8,20 @@ import {
   bankSegmentOrder,
   getSegmentLabel,
 } from "@/lib/banks";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Bank Statement Converters by Bank | CleanStmt",
   description:
     "Browse bank-specific statement converters for clean Excel and QuickBooks-ready CSV exports with no merged cells.",
   alternates: {
-    canonical: "https://cleanstmt.com/convert",
+    canonical: absoluteUrl("/convert"),
   },
   openGraph: {
     title: "Bank Statement Converters by Bank | CleanStmt",
     description:
       "Find your bank and convert statement PDFs to accounting-ready Excel or CSV in seconds.",
-    url: "https://cleanstmt.com/convert",
+    url: absoluteUrl("/convert"),
     siteName: "CleanStmt",
     type: "website",
   },
